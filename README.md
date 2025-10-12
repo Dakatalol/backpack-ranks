@@ -1,14 +1,6 @@
 # Backpack Exchange Volume Tracker
 
-A Python tool to track and analyze Backpack exchange leaderboard volume data, helping you identify optimal periods for volume farming.
-
-## Overview
-
-This tool helps you make informed decisions about when to farm volume on Backpack exchange by:
-- Collecting historical leaderboard data
-- Analyzing volume trends over time
-- Comparing current conditions against historical averages
-- Providing recommendations on farming difficulty
+A Python tool to track and analyze Backpack exchange leaderboard volume data with automated Telegram reporting via n8n.
 
 ## Features
 
@@ -17,161 +9,333 @@ This tool helps you make informed decisions about when to farm volume on Backpac
 - **Statistical Analysis**: Calculate averages, medians, percentiles, and rank thresholds
 - **Difficulty Scoring**: Get a difficulty score comparing current vs historical volume
 - **Smart Recommendations**: Receive actionable advice on whether it's a good time to farm
+- **n8n Automation**: Automated Telegram reports twice daily (8 AM & 8 PM) with volume analysis
 
-## Installation
+---
 
-1. **Install Python dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Quick Start
 
-2. **Verify installation**:
-   ```bash
-   python main.py --help
-   ```
+### 1. Install Dependencies
 
-## Usage
+```bash
+pip install -r requirements.txt
+```
 
-### 1. Collect Data
-
-Collect current leaderboard data and store it in the database:
+### 2. Collect Initial Data
 
 ```bash
 python main.py collect
 ```
 
-**Options**:
-- `--max-entries N`: Number of entries to collect (default: 1000)
+Run this 2-3 times over a few days to build historical baseline.
 
-**Example**:
-```bash
-python main.py collect --max-entries 2000
-```
-
-**What it does**:
-- Fetches leaderboard data from Backpack API
-- Displays current week statistics
-- Stores snapshot in local database
-
-### 2. Analyze Current Conditions
-
-Compare current leaderboard against historical data to get farming recommendations:
+### 3. Analyze Current Conditions
 
 ```bash
 python main.py analyze
 ```
 
-**Options**:
-- `--max-entries N`: Number of entries to analyze (default: 1000)
+---
 
-**What it shows**:
-- Current week statistics
-- Rank thresholds (volume needed for top 10, 50, 100, etc.)
-- Comparison with historical averages
-- Difficulty score (0-100+)
-- Farming recommendation
+## CLI Usage
 
-**Difficulty Score Guide**:
-- **< 80**: GOOD TIME TO FARM - Volume significantly below average
-- **80-95**: DECENT TIME TO FARM - Volume below average
-- **95-105**: AVERAGE CONDITIONS - Volume near historical average
-- **105-120**: HARDER THAN USUAL - Volume above average
-- **> 120**: VERY HARD TO FARM - Volume significantly above average
+### Collect Data
+```bash
+python main.py collect [--max-entries N]
+```
+Fetches current leaderboard and stores in database.
 
-### 3. View Historical Data
+### Analyze Conditions
+```bash
+python main.py analyze [--max-entries N]
+```
+Compares current volume against historical average and provides farming recommendation.
 
-View all stored snapshots:
-
+### View History
 ```bash
 python main.py history
 ```
+Shows all stored snapshots with basic stats.
 
-**What it shows**:
-- List of all snapshots with timestamps
-- Week identifier
-- Entry count, total volume, and average volume for each snapshot
-
-### 4. Inspect Specific Snapshot
-
-View detailed information about a specific snapshot:
-
+### Inspect Snapshot
 ```bash
 python main.py inspect <snapshot_id>
 ```
+View detailed information about a specific snapshot.
 
-**Example**:
+---
+
+## Automated Telegram Reports (n8n Integration)
+
+Get automated volume reports sent to your Telegram twice daily at 8 AM and 8 PM!
+
+### Prerequisites
+
+- **Node.js** v18+ (for n8n)
+- **Telegram account**
+- **Windows** (guide is Windows-specific, but adaptable to Linux/Mac)
+
+### Setup Guide
+
+#### Step 1: Install n8n
+
 ```bash
-python main.py inspect 5
+npm install n8n -g
 ```
 
-**What it shows**:
-- Full statistics for that snapshot
-- Rank thresholds at that time
+Verify installation:
+```bash
+n8n --version
+```
 
-## Workflow Example
+---
 
-### First Time Setup
+#### Step 2: Create Telegram Bot
 
-1. **Collect initial data**:
-   ```bash
-   python main.py collect
+1. Open Telegram and search for **@BotFather**
+2. Send `/newbot` and follow the prompts
+3. Choose a name (e.g., "Backpack Volume Tracker")
+4. Choose a username ending in 'bot' (e.g., "backpack_volume_bot")
+5. **Save the bot token** - you'll need this later
+
+Example token: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
+
+---
+
+#### Step 3: Get Your Chat ID
+
+1. Search for **@userinfobot** in Telegram
+2. Start a chat with it
+3. It will reply with your user information
+4. **Save your Chat ID** (the number shown as "Id")
+
+Example: `987654321`
+
+---
+
+#### Step 4: Start n8n
+
+```bash
+n8n start
+```
+
+n8n will open at `http://localhost:5678`
+
+---
+
+#### Step 5: Import Workflow
+
+1. In n8n, click **"Workflows"** → **"Import from File"**
+2. Select `n8n_workflow.json` from this project
+3. The workflow will be imported with all nodes
+
+---
+
+#### Step 6: Set Project Path
+
+1. Click on the **"Execute Python Script"** node
+2. Update the command with your actual project path:
+   - **Windows**: `cd C:\Users\YourUsername\path\to\backpack-ranks && python n8n_wrapper.py`
+   - **Linux/Mac**: `cd /home/username/path/to/backpack-ranks && python n8n_wrapper.py`
+3. Click **"Save"**
+
+**Tip:** To find your path:
+- Windows: Open project folder in Explorer, copy path from address bar
+- Linux/Mac: Run `pwd` in the project directory
+
+---
+
+#### Step 7: Configure Telegram Credentials
+
+1. Click on any **"Send to Telegram"** node
+2. Under **"Credentials"**, click **"Create New"**
+3. Enter:
+   - **Credential Name**: `Backpack Telegram Bot`
+   - **Access Token**: Your bot token from @BotFather
+4. Click **"Save"**
+
+---
+
+#### Step 8: Set Your Chat ID
+
+You need to set your chat ID in TWO nodes:
+
+1. Click on **"Set Chat ID"** node
+2. Replace `YOUR_CHAT_ID_HERE` with your actual chat ID:
+   ```javascript
+   return {
+     json: {
+       ...items[0].json,
+       chatId: '1290944468'  // Your actual chat ID here
+     }
+   };
    ```
+3. Click on **"Set Chat ID (Error)"** node
+4. Do the same replacement
 
-2. **Wait a few days/weeks and collect more data**:
-   ```bash
-   python main.py collect
-   ```
+---
 
-3. **Repeat step 2 regularly** (e.g., daily or every few days)
+#### Step 9: Start Your Bot
 
-### Regular Usage
+**Important:** Before testing, you must start a conversation with your bot:
 
-Once you have historical data (3+ snapshots recommended):
+1. Open Telegram
+2. Search for your bot (the username you created)
+3. Click on it to open the chat
+4. Send `/start` (or click the "Start" button)
 
-1. **Check current conditions**:
-   ```bash
-   python main.py analyze
-   ```
+---
 
-2. **Review the recommendation** and decide whether to farm
+#### Step 10: Test the Workflow
 
-3. **View trends**:
-   ```bash
-   python main.py history
-   ```
+1. In n8n, click **"Execute Workflow"** button (top right)
+2. Wait 5-10 seconds
+3. Check your Telegram - you should receive a formatted report! 📱
 
-## Understanding the Output
+---
 
-### Statistics Explained
+#### Step 11: Activate Automation
 
-- **Total Volume**: Sum of all user volumes in the snapshot
-- **Average Volume**: Mean volume per user
-- **Median Volume**: Middle value when all volumes are sorted
-- **Percentiles**:
-  - 25th: 25% of users have less volume
-  - 50th: Same as median
-  - 75th: 75% of users have less volume
+1. Toggle the switch at the top right to **"Active"**
+2. Keep n8n running
+3. You'll now receive reports automatically at 8 AM and 8 PM!
+
+---
+
+### Running n8n Continuously
+
+To keep n8n running so it can send scheduled reports:
+
+**Option 1: Keep terminal open**
+```bash
+n8n start
+```
+Keep this terminal window open.
+
+**Option 2: Run in background (Linux/Mac)**
+```bash
+nohup n8n start &
+```
+
+**Option 3: Windows Task Scheduler**
+1. Open Task Scheduler
+2. Create Basic Task
+3. Name: `n8n Backpack Tracker`
+4. Trigger: **"When I log on"**
+5. Action: **"Start a program"**
+   - Program: `cmd.exe`
+   - Arguments: `/c n8n start`
+
+---
+
+### What You'll Receive
+
+Each Telegram report includes:
+
+```
+📊 Backpack Volume Tracker Report
+━━━━━━━━━━━━━━━━━━━━
+
+📈 Current Volume Statistics
+Week: 2025-W41
+Total Volume: $19.24M
+Average Volume: $19.24K
+Median Volume: $7.47K
+Traders Tracked: 1000
+
+🏆 Rank Thresholds (Volume Needed)
+Top 10: $186.25K
+Top 50: $74.68K
+Top 100: $47.90K
+Top 250: $17.24K
+Top 500: $7.47K
+Top 1000: $2.74K
+
+📊 Historical Comparison
+Total Volume Change: -1.71%
+Avg Volume Change: -1.71%
+Historical Snapshots: 6
+
+🟠 Difficulty Score: 98.3
+AVERAGE CONDITIONS
+
+💡 Recommendation
+AVERAGE CONDITIONS - Volume is near historical average
+
+━━━━━━━━━━━━━━━━━━━━
+🕐 10/12/2025, 9:00:00 PM
+Snapshot ID: 6
+```
+
+---
+
+### Difficulty Score Guide
+
+- 🟢 **< 80**: GOOD TIME TO FARM - Volume significantly below average
+- 🟡 **80-95**: DECENT TIME TO FARM - Volume below average  
+- 🟠 **95-105**: AVERAGE CONDITIONS - Volume near historical average
+- 🔴 **105-120**: HARDER THAN USUAL - Volume above average
+- ⛔ **> 120**: VERY HARD TO FARM - Volume significantly above average
+
+---
+
+## Troubleshooting
+
+### Telegram: "Chat not found"
+
+**Solution:** Send `/start` to your bot in Telegram first, then test again.
+
+### Telegram: No message received
+
+**Check:**
+1. Bot token is correct in n8n credentials
+2. Chat ID is correct (numeric, no quotes)
+3. You've sent `/start` to your bot
+4. Workflow is "Active" in n8n
+5. n8n is running
+
+**Test manually:** Click "Execute Workflow" in n8n to test immediately.
+
+### Python: "Module not found"
+
+**Solution:**
+```bash
+pip install -r requirements.txt
+```
+
+### n8n: "Format Telegram Message" node error
+
+**Cause:** Python script outputs progress messages before JSON.
+
+**Solution:** The `n8n_wrapper.py` script already suppresses these messages. If you still see this error, make sure you're using the latest version of `n8n_wrapper.py` from this repository.
+
+### Schedule not triggering
+
+**Check:**
+1. Workflow is **Active** (green toggle)
+2. n8n is running
+3. Computer is on at scheduled times
+4. Check n8n "Executions" tab for history
+
+---
+
+## Understanding the Metrics
+
+### Difficulty Score
+- Based on total and average volume compared to historical baseline
+- Lower score = easier to farm (less competition)
+- Higher score = harder to farm (more competition)
 
 ### Rank Thresholds
+- Shows exact volume needed to achieve specific ranks
+- Use this to set realistic farming goals
+- Updated twice daily with current data
 
-Shows the minimum volume required to achieve specific ranks:
-- Top 10, 50, 100, 250, 500, 1000
+### Volume Change %
+- Positive % = higher than average (harder to farm)
+- Negative % = lower than average (easier to farm)
 
-Use this to set volume goals based on your target rank.
-
-### Comparison Metrics
-
-- **Total Volume Change**: % change in total leaderboard volume vs historical average
-- **Avg Volume Change**: % change in per-user volume vs historical average
-- **Difficulty Score**: Combined metric (higher = harder to rank)
-
-## Tips
-
-1. **Collect data regularly**: The more historical data you have, the better the analysis
-2. **Collect during different times**: Capture both high and low activity periods
-3. **Use analyze before farming**: Check conditions before starting your farming session
-4. **Monitor rank thresholds**: Track how much volume you need for your target rank
-5. **Consider the trend**: Look at history to see if volume is increasing or decreasing over time
+---
 
 ## Project Structure
 
@@ -185,39 +349,61 @@ backpack-ranks/
 │   ├── analyzer.py          # Statistical analysis
 │   └── utils.py             # Formatting utilities
 ├── main.py                  # CLI entry point
-├── requirements.txt         # Python dependencies
-└── README.md               # This file
+├── n8n_wrapper.py          # n8n integration script
+├── n8n_workflow.json       # n8n workflow (import this)
+├── requirements.txt        # Python dependencies
+└── README.md              # This file
 ```
+
+---
 
 ## API Information
 
-This tool uses the Backpack Exchange public API:
-- Endpoint: `https://api.backpack.exchange/wapi/v1/statistics/leaderboard/volume/week`
-- No authentication required
-- Rate limits: Unknown (use responsibly)
+Uses Backpack Exchange public API:
+- **Endpoint**: `https://api.backpack.exchange/wapi/v1/statistics/leaderboard/volume/week`
+- **Authentication**: None required
+- **Rate limits**: Unknown (use responsibly)
 
-## Troubleshooting
+---
 
-### "No historical data available"
-- Run `python main.py collect` to create your first snapshot
+## Tips
 
-### "Failed to collect data from API"
-- Check your internet connection
-- Verify the API endpoint is still valid
-- Check if Backpack API is experiencing issues
+1. **Build history first**: Collect data 2-3 times before activating automation for better analysis
+2. **Monitor first week**: Check that reports arrive as expected at 8 AM and 8 PM
+3. **Watch difficulty score**: Act when 🟢 (< 80) appears
+4. **Use rank thresholds**: Plan volume goals based on desired rank
+5. **Keep n8n running**: Ensure n8n is always running for scheduled reports
 
-### Database errors
-- Ensure the `data/` directory exists and is writable
-- Check that `backpack.db` is not corrupted
+---
 
-## Future Enhancements
+## Quick Reference
 
-Potential features to add:
-- Automated scheduling (cron/Task Scheduler integration)
-- Email/notification alerts when conditions are favorable
-- Web dashboard for visualization
-- Export data to CSV/JSON
-- Multi-week trend charts
+### Start n8n
+```bash
+n8n start
+```
+
+### Test Python Script
+```bash
+python n8n_wrapper.py
+```
+
+### Collect Data Manually
+```bash
+python main.py collect
+```
+
+### View Historical Data
+```bash
+python main.py history
+```
+
+### Check Analysis
+```bash
+python main.py analyze
+```
+
+---
 
 ## License
 
@@ -226,3 +412,15 @@ This is a personal utility tool. Use at your own discretion.
 ## Disclaimer
 
 This tool is for informational purposes only. Volume farming decisions should be made based on multiple factors, not just this tool's recommendations.
+
+---
+
+## Support
+
+For issues:
+- **Python/CLI**: Check error messages and ensure dependencies are installed
+- **n8n**: Check the Executions tab in n8n for detailed logs
+- **Telegram**: Ensure bot token and chat ID are correct, and you've started the bot
+- **API**: Verify Backpack API is accessible: https://api.backpack.exchange/wapi/v1/statistics/leaderboard/volume/week
+
+Happy farming! 🚀
