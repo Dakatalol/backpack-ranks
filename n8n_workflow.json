@@ -1,147 +1,132 @@
 {
-  "name": "Backpack Volume Tracker - Telegram Reports",
+  "name": "Backpack Volume Tracker",
   "nodes": [
     {
       "parameters": {
         "rule": {
           "interval": [
             {
-              "cronExpression": "0 8 * * *"
+              "field": "cronExpression",
+              "expression": "0 8,20 * * *"
             }
           ]
         }
       },
-      "id": "schedule-morning",
-      "name": "Schedule Morning (8 AM)",
+      "id": "schedule-morning-evening",
+      "name": "Schedule (8 AM & 8 PM)",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.1,
-      "position": [240, 240]
+      "typeVersion": 1,
+      "position": [250, 300]
     },
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "cronExpression": "0 20 * * *"
-            }
-          ]
-        }
-      },
-      "id": "schedule-evening",
-      "name": "Schedule Evening (8 PM)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.1,
-      "position": [240, 440]
-    },
-    {
-      "parameters": {
-        "command": "cd /path/to/backpack-ranks && python n8n_wrapper.py"
+        "command": "python n8n_tracker.py"
       },
       "id": "execute-python",
       "name": "Execute Python Script",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [460, 340],
-      "notes": "Replace /path/to/backpack-ranks with your actual project path"
+      "position": [450, 300]
     },
     {
       "parameters": {
-        "functionCode": "const data = JSON.parse($input.item.json.stdout);\n\nif (data.status === 'error') {\n  return {\n    json: {\n      chatId: '{{ $json.chatId }}',\n      text: `⚠️ *Backpack Volume Tracker - Error*\\n\\n${data.message}\\n\\n🕐 ${data.timestamp}`\n    }\n  };\n}\n\n// Format difficulty score indicator\nlet scoreEmoji = '🟢';\nlet scoreDesc = 'GOOD TIME TO FARM';\nconst score = data.analysis.difficulty_score;\n\nif (score >= 120) {\n  scoreEmoji = '⛔';\n  scoreDesc = 'VERY HARD TO FARM';\n} else if (score >= 105) {\n  scoreEmoji = '🔴';\n  scoreDesc = 'HARDER THAN USUAL';\n} else if (score >= 95) {\n  scoreEmoji = '🟠';\n  scoreDesc = 'AVERAGE CONDITIONS';\n} else if (score >= 80) {\n  scoreEmoji = '🟡';\n  scoreDesc = 'DECENT TIME TO FARM';\n}\n\n// Format volume numbers\nconst formatNum = (num) => {\n  if (num >= 1000000) return `${(num/1000000).toFixed(2)}M`;\n  if (num >= 1000) return `${(num/1000).toFixed(2)}K`;\n  return num.toFixed(2);\n};\n\n// Build the message\nconst stats = data.current_stats;\nconst thresholds = data.rank_thresholds;\nconst analysis = data.analysis;\n\nlet message = `📊 *Backpack Volume Tracker Report*\\n`;\nmessage += `━━━━━━━━━━━━━━━━━━━━\\n\\n`;\n\n// Current statistics\nmessage += `📈 *Current Volume Statistics*\\n`;\nmessage += `Week: \\`${data.week_identifier}\\`\\n`;\nmessage += `Total Volume: \\`$${formatNum(stats.total_volume)}\\`\\n`;\nmessage += `Average Volume: \\`$${formatNum(stats.avg_volume)}\\`\\n`;\nmessage += `Median Volume: \\`$${formatNum(stats.median_volume)}\\`\\n`;\nmessage += `Traders Tracked: \\`${stats.total_entries}\\`\\n\\n`;\n\n// Rank thresholds\nmessage += `🏆 *Rank Thresholds (Volume Needed)*\\n`;\nmessage += `Top 10: \\`$${formatNum(thresholds.top_10)}\\`\\n`;\nmessage += `Top 50: \\`$${formatNum(thresholds.top_50)}\\`\\n`;\nmessage += `Top 100: \\`$${formatNum(thresholds.top_100)}\\`\\n`;\nmessage += `Top 250: \\`$${formatNum(thresholds.top_250)}\\`\\n`;\nmessage += `Top 500: \\`$${formatNum(thresholds.top_500)}\\`\\n`;\nmessage += `Top 1000: \\`$${formatNum(thresholds.top_1000)}\\`\\n\\n`;\n\n// Historical comparison (if available)\nif (data.historical_snapshots >= 2) {\n  message += `📊 *Historical Comparison*\\n`;\n  message += `Total Volume Change: \\`${analysis.total_volume_change > 0 ? '+' : ''}${analysis.total_volume_change}%\\`\\n`;\n  message += `Avg Volume Change: \\`${analysis.avg_volume_change > 0 ? '+' : ''}${analysis.avg_volume_change}%\\`\\n`;\n  message += `Historical Snapshots: \\`${data.historical_snapshots}\\`\\n\\n`;\n  \n  message += `${scoreEmoji} *Difficulty Score: ${score.toFixed(1)}*\\n`;\n  message += `${scoreDesc}\\n\\n`;\n  \n  message += `💡 *Recommendation*\\n`;\n  message += `${analysis.recommendation}\\n\\n`;\n} else {\n  message += `📊 *Historical Analysis*\\n`;\n  message += `Snapshots Collected: \\`${data.historical_snapshots}/2\\`\\n`;\n  message += `⏳ Need ${2 - data.historical_snapshots} more snapshot(s) for analysis\\n\\n`;\n}\n\nmessage += `━━━━━━━━━━━━━━━━━━━━\\n`;\nmessage += `🕐 ${new Date(data.timestamp).toLocaleString()}\\n`;\nmessage += `Snapshot ID: \\`${data.snapshot_id}\\``;\n\nreturn {\n  json: {\n    text: message,\n    parseMode: 'Markdown'\n  }\n};"
-      },
-      "id": "format-message",
-      "name": "Format Telegram Message",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [680, 240]
-    },
-    {
-      "parameters": {
-        "functionCode": "// Set your Telegram Chat ID here\n// You can get this from @userinfobot on Telegram\nreturn {\n  json: {\n    ...items[0].json,\n    chatId: 'YOUR_CHAT_ID_HERE'\n  }\n};"
-      },
-      "id": "set-chat-id",
-      "name": "Set Chat ID",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [900, 240],
-      "alwaysOutputData": true,
-      "notes": "Replace YOUR_CHAT_ID_HERE with your actual Telegram chat ID"
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "={{ $json.text }}",
-        "additionalFields": {
-          "parse_mode": "={{ $json.parseMode }}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equals",
+              "value2": "success"
+            }
+          ]
         }
       },
-      "id": "send-telegram",
-      "name": "Send to Telegram",
+      "id": "if-success",
+      "name": "Check if Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.analysis.difficulty_score }}",
+              "operation": "smaller",
+              "value2": 95
+            }
+          ]
+        }
+      },
+      "id": "if-good-time",
+      "name": "Check if Good Time to Farm",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst volume = data.current.rank_1000_volume;\nconst volumeFormatted = `$${(volume / 1000000).toFixed(2)}M`;\nconst score = data.analysis.difficulty_score;\nconst change = data.analysis.volume_change_percent;\nconst recommendation = data.analysis.recommendation;\nconst user = data.current.user_at_rank_1000;\n\nlet emoji = '🎯';\nif (score < 80) emoji = '🎯';\nelse if (score < 95) emoji = '✅';\nelse if (score < 105) emoji = '➖';\nelse if (score < 120) emoji = '⚠️';\nelse emoji = '🔴';\n\nreturn {\n  json: {\n    message: `${emoji} **Backpack Volume Alert**\\n\\n` +\n             `${recommendation}\\n\\n` +\n             `📊 **Current Rank 1000:** ${volumeFormatted}\\n` +\n             `👤 **User:** ${user}\\n` +\n             `📈 **Difficulty Score:** ${score}/100\\n` +\n             `📉 **Change:** ${change > 0 ? '+' : ''}${change}%\\n\\n` +\n             `You need **more than ${volumeFormatted}** in trading volume to be in the top 1000.`\n  }\n};"
+      },
+      "id": "format-success-message",
+      "name": "Format Success Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst message = data.message || 'Unknown error';\n\nreturn {\n  json: {\n    error_message: `⚠️ **Backpack Volume Tracker Error**\\n\\n` +\n                   `Failed to collect rank 1000 data.\\n\\n` +\n                   `**Error:** ${message}\\n\\n` +\n                   `Please check:\\n` +\n                   `• Python script is accessible\\n` +\n                   `• Internet connection is active\\n` +\n                   `• Backpack API is responding`\n  }\n};"
+      },
+      "id": "format-error-message",
+      "name": "Format Error Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-telegram-success",
+      "name": "Send Telegram Alert",
       "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.1,
-      "position": [1120, 240],
+      "typeVersion": 1,
+      "position": [1250, 200],
       "credentials": {
         "telegramApi": {
-          "id": "1",
-          "name": "Telegram Bot API"
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram account"
         }
       }
     },
     {
       "parameters": {
-        "functionCode": "// This node handles errors from the Python script\nconst error = $input.item.json.error || 'Unknown error occurred';\nconst stderr = $input.item.json.stderr || '';\n\nlet message = `⚠️ *Backpack Volume Tracker - Execution Error*\\n\\n`;\nmessage += `An error occurred while collecting volume data.\\n\\n`;\nmessage += `*Error Details:*\\n\\`\\`\\`\\n${error}\\n${stderr}\\n\\`\\`\\`\\n\\n`;\nmessage += `🕐 ${new Date().toLocaleString()}\\n\\n`;\nmessage += `Please check the logs and ensure:\\n`;\nmessage += `• Python script is accessible\\n`;\nmessage += `• Internet connection is active\\n`;\nmessage += `• Backpack API is responding`;\n\nreturn {\n  json: {\n    text: message,\n    parseMode: 'Markdown'\n  }\n};"
-      },
-      "id": "format-error",
-      "name": "Format Error Message",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [680, 440]
-    },
-    {
-      "parameters": {
-        "functionCode": "// Set your Telegram Chat ID here\n// You can get this from @userinfobot on Telegram\nreturn {\n  json: {\n    ...items[0].json,\n    chatId: 'YOUR_CHAT_ID_HERE'\n  }\n};"
-      },
-      "id": "set-chat-id-error",
-      "name": "Set Chat ID (Error)",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [900, 440],
-      "alwaysOutputData": true,
-      "notes": "Replace YOUR_CHAT_ID_HERE with your actual Telegram chat ID"
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "={{ $json.text }}",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.error_message }}",
         "additionalFields": {
-          "parse_mode": "={{ $json.parseMode }}"
+          "parse_mode": "Markdown"
         }
       },
-      "id": "send-error-telegram",
-      "name": "Send Error to Telegram",
+      "id": "send-telegram-error",
+      "name": "Send Error Alert",
       "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.1,
-      "position": [1120, 440],
+      "typeVersion": 1,
+      "position": [1050, 400],
       "credentials": {
         "telegramApi": {
-          "id": "1",
-          "name": "Telegram Bot API"
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram account"
         }
       }
     }
   ],
   "connections": {
-    "Schedule Morning (8 AM)": {
-      "main": [
-        [
-          {
-            "node": "Execute Python Script",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Schedule Evening (8 PM)": {
+    "Schedule (8 AM & 8 PM)": {
       "main": [
         [
           {
@@ -156,7 +141,18 @@
       "main": [
         [
           {
-            "node": "Format Telegram Message",
+            "node": "Check if Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Success": {
+      "main": [
+        [
+          {
+            "node": "Check if Good Time to Farm",
             "type": "main",
             "index": 0
           }
@@ -170,22 +166,22 @@
         ]
       ]
     },
-    "Format Telegram Message": {
+    "Check if Good Time to Farm": {
       "main": [
         [
           {
-            "node": "Set Chat ID",
+            "node": "Format Success Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Chat ID": {
+    "Format Success Message": {
       "main": [
         [
           {
-            "node": "Send to Telegram",
+            "node": "Send Telegram Alert",
             "type": "main",
             "index": 0
           }
@@ -196,18 +192,7 @@
       "main": [
         [
           {
-            "node": "Set Chat ID (Error)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Set Chat ID (Error)": {
-      "main": [
-        [
-          {
-            "node": "Send Error to Telegram",
+            "node": "Send Error Alert",
             "type": "main",
             "index": 0
           }
@@ -215,13 +200,9 @@
       ]
     }
   },
-  "pinData": {},
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 0,
-  "updatedAt": "2025-10-12T00:00:00.000Z",
-  "versionId": "1"
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "id": "backpack-simple-tracker"
 }
+

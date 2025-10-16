@@ -1,15 +1,14 @@
 # Backpack Exchange Volume Tracker
 
-A Python tool to track and analyze Backpack exchange leaderboard volume data with automated Telegram reporting via n8n.
+Track rank 1000 volume on Backpack Exchange to identify optimal volume farming periods. Get automated alerts when competition is low.
 
 ## Features
 
-- **Data Collection**: Automatically fetch and store leaderboard data from Backpack API
-- **Historical Tracking**: SQLite database stores all snapshots for trend analysis
-- **Statistical Analysis**: Calculate averages, medians, percentiles, and rank thresholds
-- **Difficulty Scoring**: Get a difficulty score comparing current vs historical volume
-- **Smart Recommendations**: Receive actionable advice on whether it's a good time to farm
-- **n8n Automation**: Automated Telegram reports twice daily (8 AM & 8 PM) with volume analysis
+- **Rank 1000 Tracking**: Monitor the minimum volume needed to stay in top 1000
+- **Historical Comparison**: Compare current vs historical rank 1000 volume
+- **Smart Alerts**: Get notified only when conditions are favorable for farming
+- **n8n Automation**: Automated Telegram alerts twice daily (8 AM & 8 PM)
+- **CLI Tools**: Detailed analysis tools for manual checking
 
 ---
 
@@ -21,53 +20,78 @@ A Python tool to track and analyze Backpack exchange leaderboard volume data wit
 pip install -r requirements.txt
 ```
 
-### 2. Collect Initial Data
+### 2. Test the Rank 1000 Tracker
 
 ```bash
-python main.py collect
+python n8n_tracker.py
 ```
 
-Run this 2-3 times over a few days to build historical baseline.
+This tracks rank 1000's volume (the minimum to stay in top 1000). Run it 2-3 times over a few days to build historical baseline.
 
-### 3. Analyze Current Conditions
+**Sample output:**
+```json
+{
+  "current": {
+    "rank_1000_volume": 2272851.78,
+    "user_at_rank_1000": "circuitously-wise-char"
+  },
+  "analysis": {
+    "difficulty_score": 90.91,
+    "volume_change_percent": -9.09,
+    "recommendation": "✅ GOOD TIME TO FARM"
+  }
+}
+```
+
+### 3. Optional: Full CLI for Detailed Analysis
+
+If you want detailed statistics beyond rank 1000:
 
 ```bash
-python main.py analyze
+python main.py collect  # Collect all 1000 entries
+python main.py analyze  # Detailed statistical analysis
 ```
 
 ---
 
-## CLI Usage
+## What This Tool Does
 
-### Collect Data
-```bash
-python main.py collect [--max-entries N]
-```
-Fetches current leaderboard and stores in database.
+Tracks rank 1000's volume to tell you if it's a good time to farm:
 
-### Analyze Conditions
-```bash
-python main.py analyze [--max-entries N]
-```
-Compares current volume against historical average and provides farming recommendation.
+- ⚡ **Fast**: Tracks only rank 1000 volume
+- 🎯 **Focused**: Directly tells you the minimum volume needed for top 1000
+- 📊 **Clean Output**: JSON output perfect for n8n
+- 💾 **Efficient**: Minimal database storage
 
-### View History
-```bash
-python main.py history
-```
-Shows all stored snapshots with basic stats.
+**What it tracks:**
+- Current rank 1000 volume
+- Historical average of rank 1000 volume
+- Difficulty score based on rank 1000 comparison
+- Recommendation: Is it a good time to farm?
 
-### Inspect Snapshot
+**Difficulty Score:**
+- `< 80` = 🎯 EXCELLENT TIME (20%+ easier than average)
+- `80-95` = ✅ GOOD TIME (easier than average)
+- `95-105` = ➖ AVERAGE CONDITIONS
+- `105-120` = ⚠️ HARDER THAN USUAL
+- `> 120` = 🔴 VERY HARD (20%+ harder)
+
+### Optional CLI Tools
+
+For detailed analysis when needed:
+
 ```bash
-python main.py inspect <snapshot_id>
+python main.py collect            # Collect all 1000 entries
+python main.py analyze            # Full statistical analysis
+python main.py history            # View all snapshots
+python main.py inspect <id>       # Inspect specific snapshot
 ```
-View detailed information about a specific snapshot.
 
 ---
 
-## Automated Telegram Reports (n8n Integration)
+## n8n Automation (Telegram Alerts)
 
-Get automated volume reports sent to your Telegram twice daily at 8 AM and 8 PM!
+Get automated alerts when it's a good time to farm! The workflow runs twice daily (8 AM & 8 PM) and only notifies you when conditions are favorable.
 
 ### Prerequisites
 
@@ -134,14 +158,13 @@ n8n will open at `http://localhost:5678`
 #### Step 6: Set Project Path
 
 1. Click on the **"Execute Python Script"** node
-2. Update the command with your actual project path:
-   - **Windows**: `cd C:\Users\YourUsername\path\to\backpack-ranks && python n8n_wrapper.py`
-   - **Linux/Mac**: `cd /home/username/path/to/backpack-ranks && python n8n_wrapper.py`
-3. Click **"Save"**
+2. Set the working directory to your project path
+3. The command should already be: `python n8n_tracker.py`
+4. Click **"Save"**
 
-**Tip:** To find your path:
-- Windows: Open project folder in Explorer, copy path from address bar
-- Linux/Mac: Run `pwd` in the project directory
+**To find your project path:**
+- **Windows**: Open project folder in Explorer, copy path from address bar
+- **Linux/Mac**: Run `pwd` in the project directory
 
 ---
 
@@ -158,20 +181,12 @@ n8n will open at `http://localhost:5678`
 
 #### Step 8: Set Your Chat ID
 
-You need to set your chat ID in TWO nodes:
+Update the chat ID in the Telegram nodes:
 
-1. Click on **"Set Chat ID"** node
-2. Replace `YOUR_CHAT_ID_HERE` with your actual chat ID:
-   ```javascript
-   return {
-     json: {
-       ...items[0].json,
-       chatId: '1290944468'  // Your actual chat ID here
-     }
-   };
-   ```
-3. Click on **"Set Chat ID (Error)"** node
-4. Do the same replacement
+1. Click on **"Send Telegram Alert"** node
+2. Replace `YOUR_TELEGRAM_CHAT_ID` with your actual chat ID (the number from @userinfobot)
+3. Click **"Save"**
+4. Do the same for **"Send Error Alert"** node
 
 ---
 
@@ -190,7 +205,9 @@ You need to set your chat ID in TWO nodes:
 
 1. In n8n, click **"Execute Workflow"** button (top right)
 2. Wait 5-10 seconds
-3. Check your Telegram - you should receive a formatted report! 📱
+3. Check your Telegram for a message! 📱
+
+**Note:** You'll only get a message if conditions are favorable (difficulty score < 95). To test regardless of conditions, temporarily change the IF node condition or run `python n8n_tracker.py` directly to see the output.
 
 ---
 
@@ -230,52 +247,34 @@ nohup n8n start &
 
 ### What You'll Receive
 
-Each Telegram report includes:
+You'll only get alerts when it's a good time to farm (difficulty score < 95):
 
 ```
-📊 Backpack Volume Tracker Report
-━━━━━━━━━━━━━━━━━━━━
+✅ Backpack Volume Alert
 
-📈 Current Volume Statistics
-Week: 2025-W41
-Total Volume: $19.24M
-Average Volume: $19.24K
-Median Volume: $7.47K
-Traders Tracked: 1000
+GOOD TIME TO FARM - Rank 1000 volume is below average
 
-🏆 Rank Thresholds (Volume Needed)
-Top 10: $186.25K
-Top 50: $74.68K
-Top 100: $47.90K
-Top 250: $17.24K
-Top 500: $7.47K
-Top 1000: $2.74K
+📊 Current Rank 1000: $2.27M
+👤 User: circuitously-wise-char
+📈 Difficulty Score: 90.91/100
+📉 Change: -9.09%
 
-📊 Historical Comparison
-Total Volume Change: -1.71%
-Avg Volume Change: -1.71%
-Historical Snapshots: 6
-
-🟠 Difficulty Score: 98.3
-AVERAGE CONDITIONS
-
-💡 Recommendation
-AVERAGE CONDITIONS - Volume is near historical average
-
-━━━━━━━━━━━━━━━━━━━━
-🕐 10/12/2025, 9:00:00 PM
-Snapshot ID: 6
+You need more than $2.27M in trading volume to be in the top 1000.
 ```
 
 ---
 
 ### Difficulty Score Guide
 
-- 🟢 **< 80**: GOOD TIME TO FARM - Volume significantly below average
-- 🟡 **80-95**: DECENT TIME TO FARM - Volume below average  
-- 🟠 **95-105**: AVERAGE CONDITIONS - Volume near historical average
-- 🔴 **105-120**: HARDER THAN USUAL - Volume above average
-- ⛔ **> 120**: VERY HARD TO FARM - Volume significantly above average
+The difficulty score shows how hard it is to farm compared to historical average:
+
+- 🎯 **< 80**: EXCELLENT TIME - 20%+ easier than average
+- ✅ **80-95**: GOOD TIME - Easier than average  
+- ➖ **95-105**: AVERAGE CONDITIONS - Normal competition
+- ⚠️ **105-120**: HARDER THAN USUAL - Above average competition
+- 🔴 **> 120**: VERY HARD - 20%+ harder than average
+
+**Lower score = less competition = better time to farm**
 
 ---
 
@@ -289,12 +288,15 @@ Snapshot ID: 6
 
 **Check:**
 1. Bot token is correct in n8n credentials
-2. Chat ID is correct (numeric, no quotes)
+2. Chat ID is correct (should be just the number in the Telegram node)
 3. You've sent `/start` to your bot
 4. Workflow is "Active" in n8n
 5. n8n is running
 
-**Test manually:** Click "Execute Workflow" in n8n to test immediately.
+You'll only get alerts when difficulty score < 95. To test, either:
+- Wait until conditions are favorable
+- Temporarily change the IF node condition to always pass
+- Run `python n8n_tracker.py` directly to see current score
 
 ### Python: "Module not found"
 
@@ -303,11 +305,15 @@ Snapshot ID: 6
 pip install -r requirements.txt
 ```
 
-### n8n: "Format Telegram Message" node error
+### n8n: Workflow triggered but both paths firing
 
-**Cause:** Python script outputs progress messages before JSON.
+**Cause:** Missing IF node to route based on success/failure.
 
-**Solution:** The `n8n_wrapper.py` script already suppresses these messages. If you still see this error, make sure you're using the latest version of `n8n_wrapper.py` from this repository.
+**Solution:** The workflow already has proper IF nodes:
+1. First IF: Check if status === "success"
+2. Second IF: Check if difficulty_score < 95
+
+Make sure both IF nodes are configured correctly and connected properly.
 
 ### Schedule not triggering
 
@@ -342,17 +348,17 @@ pip install -r requirements.txt
 ```
 backpack-ranks/
 ├── data/
-│   └── backpack.db          # SQLite database (auto-created)
+│   └── backpack.db           # SQLite database
 ├── src/
-│   ├── collector.py         # API fetching logic
-│   ├── database.py          # Database operations
-│   ├── analyzer.py          # Statistical analysis
-│   └── utils.py             # Formatting utilities
-├── main.py                  # CLI entry point
-├── n8n_wrapper.py          # n8n integration script
-├── n8n_workflow.json       # n8n workflow (import this)
-├── requirements.txt        # Python dependencies
-└── README.md              # This file
+│   ├── collector.py          # API fetching logic (used by main.py)
+│   ├── database.py           # Database operations (used by main.py)
+│   ├── analyzer.py           # Statistical analysis (used by main.py)
+│   └── utils.py              # Formatting utilities (used by main.py)
+├── main.py                   # CLI entry point (optional detailed analysis)
+├── n8n_tracker.py            # Rank 1000 tracker (main script) ⭐
+├── n8n_workflow.json         # n8n workflow file ⭐
+├── requirements.txt          # Python dependencies
+└── README.md                 # This file
 ```
 
 ---
@@ -366,41 +372,35 @@ Uses Backpack Exchange public API:
 
 ---
 
-## Tips
+## Tips & Best Practices
 
-1. **Build history first**: Collect data 2-3 times before activating automation for better analysis
-2. **Monitor first week**: Check that reports arrive as expected at 8 AM and 8 PM
-3. **Watch difficulty score**: Act when 🟢 (< 80) appears
-4. **Use rank thresholds**: Plan volume goals based on desired rank
-5. **Keep n8n running**: Ensure n8n is always running for scheduled reports
+1. **Build history first**: Run `python n8n_tracker.py` 2-3 times over a few days before activating n8n
+2. **Smart alerts only**: The workflow only alerts when score < 95 (good conditions)
+3. **Use CLI for deep dives**: Run `python main.py analyze` when you want detailed statistics
+4. **Keep n8n running**: Ensure n8n is always running for scheduled alerts
+5. **Monitor difficulty score**: Act when 🎯 (< 80) or ✅ (< 95) appears
+6. **Understand the metric**: Rank 1000 volume tells you exactly how much you need to trade
 
 ---
 
 ## Quick Reference
 
-### Start n8n
+### Main Command
 ```bash
-n8n start
+python n8n_tracker.py             # Check rank 1000 volume + get recommendation
 ```
 
-### Test Python Script
+### Optional CLI Tools (for detailed analysis)
 ```bash
-python n8n_wrapper.py
+python main.py collect            # Collect all 1000 entries
+python main.py analyze            # Detailed statistical analysis
+python main.py history            # View all snapshots
+python main.py inspect <id>       # Inspect specific snapshot
 ```
 
-### Collect Data Manually
+### n8n
 ```bash
-python main.py collect
-```
-
-### View Historical Data
-```bash
-python main.py history
-```
-
-### Check Analysis
-```bash
-python main.py analyze
+n8n start                         # Start n8n server (keep running)
 ```
 
 ---
