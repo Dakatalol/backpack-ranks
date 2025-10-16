@@ -30,59 +30,13 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.status }}",
-              "operation": "equals",
-              "value2": "success"
-            }
-          ]
-        }
+        "jsCode": "const data = $input.first().json;\n\n// If there's an error, send error message\nif (data.status === 'error') {\n  return {\n    json: {\n      message: `⚠️ **Backpack Volume Tracker Error**\\n\\n` +\n               `${data.message}\\n\\n` +\n               `Check your Python script and API connection.`\n    }\n  };\n}\n\n// Format success message\nconst volume = data.current.rank_1000_volume;\nconst volumeFormatted = `$${(volume / 1000000).toFixed(2)}M`;\nconst score = data.analysis.difficulty_score;\nconst change = data.analysis.volume_change_percent;\nconst recommendation = data.analysis.recommendation;\nconst user = data.current.user_at_rank_1000;\n\nlet emoji = '🎯';\nif (score < 80) emoji = '🎯';\nelse if (score < 95) emoji = '✅';\nelse if (score < 105) emoji = '➖';\nelse if (score < 120) emoji = '⚠️';\nelse emoji = '🔴';\n\nreturn {\n  json: {\n    message: `${emoji} **Backpack Volume Alert**\\n\\n` +\n             `${recommendation}\\n\\n` +\n             `📊 **Current Rank 1000:** ${volumeFormatted}\\n` +\n             `👤 **User:** ${user}\\n` +\n             `📈 **Difficulty Score:** ${score}/100\\n` +\n             `📉 **Change:** ${change > 0 ? '+' : ''}${change}%\\n\\n` +\n             `You need **more than ${volumeFormatted}** in trading volume to be in the top 1000.`\n  }\n};"
       },
-      "id": "if-success",
-      "name": "Check if Success",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "id": "format-message",
+      "name": "Format Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [650, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "number": [
-            {
-              "value1": "={{ $json.analysis.difficulty_score }}",
-              "operation": "smaller",
-              "value2": 95
-            }
-          ]
-        }
-      },
-      "id": "if-good-time",
-      "name": "Check if Good Time to Farm",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [850, 200]
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst volume = data.current.rank_1000_volume;\nconst volumeFormatted = `$${(volume / 1000000).toFixed(2)}M`;\nconst score = data.analysis.difficulty_score;\nconst change = data.analysis.volume_change_percent;\nconst recommendation = data.analysis.recommendation;\nconst user = data.current.user_at_rank_1000;\n\nlet emoji = '🎯';\nif (score < 80) emoji = '🎯';\nelse if (score < 95) emoji = '✅';\nelse if (score < 105) emoji = '➖';\nelse if (score < 120) emoji = '⚠️';\nelse emoji = '🔴';\n\nreturn {\n  json: {\n    message: `${emoji} **Backpack Volume Alert**\\n\\n` +\n             `${recommendation}\\n\\n` +\n             `📊 **Current Rank 1000:** ${volumeFormatted}\\n` +\n             `👤 **User:** ${user}\\n` +\n             `📈 **Difficulty Score:** ${score}/100\\n` +\n             `📉 **Change:** ${change > 0 ? '+' : ''}${change}%\\n\\n` +\n             `You need **more than ${volumeFormatted}** in trading volume to be in the top 1000.`\n  }\n};"
-      },
-      "id": "format-success-message",
-      "name": "Format Success Message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1050, 200]
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst message = data.message || 'Unknown error';\n\nreturn {\n  json: {\n    error_message: `⚠️ **Backpack Volume Tracker Error**\\n\\n` +\n                   `Failed to collect rank 1000 data.\\n\\n` +\n                   `**Error:** ${message}\\n\\n` +\n                   `Please check:\\n` +\n                   `• Python script is accessible\\n` +\n                   `• Internet connection is active\\n` +\n                   `• Backpack API is responding`\n  }\n};"
-      },
-      "id": "format-error-message",
-      "name": "Format Error Message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [850, 400]
     },
     {
       "parameters": {
@@ -92,31 +46,11 @@
           "parse_mode": "Markdown"
         }
       },
-      "id": "send-telegram-success",
-      "name": "Send Telegram Alert",
+      "id": "send-telegram",
+      "name": "Send Telegram Message",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
-      "position": [1250, 200],
-      "credentials": {
-        "telegramApi": {
-          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "YOUR_TELEGRAM_CHAT_ID",
-        "text": "={{ $json.error_message }}",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
-      },
-      "id": "send-telegram-error",
-      "name": "Send Error Alert",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1050, 400],
+      "position": [850, 300],
       "credentials": {
         "telegramApi": {
           "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
@@ -141,58 +75,18 @@
       "main": [
         [
           {
-            "node": "Check if Success",
+            "node": "Format Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check if Success": {
+    "Format Message": {
       "main": [
         [
           {
-            "node": "Check if Good Time to Farm",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Format Error Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check if Good Time to Farm": {
-      "main": [
-        [
-          {
-            "node": "Format Success Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Success Message": {
-      "main": [
-        [
-          {
-            "node": "Send Telegram Alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Error Message": {
-      "main": [
-        [
-          {
-            "node": "Send Error Alert",
+            "node": "Send Telegram Message",
             "type": "main",
             "index": 0
           }
@@ -203,6 +97,5 @@
   "active": false,
   "settings": {},
   "versionId": "1",
-  "id": "backpack-simple-tracker"
+  "id": "backpack-tracker"
 }
-

@@ -168,29 +168,18 @@ n8n will open at `http://localhost:5678`
 
 ---
 
-#### Step 7: Configure Telegram Credentials
+#### Step 7: Configure Telegram
 
-1. Click on any **"Send to Telegram"** node
-2. Under **"Credentials"**, click **"Create New"**
-3. Enter:
-   - **Credential Name**: `Backpack Telegram Bot`
-   - **Access Token**: Your bot token from @BotFather
-4. Click **"Save"**
-
----
-
-#### Step 8: Set Your Chat ID
-
-Update the chat ID in the Telegram nodes:
-
-1. Click on **"Send Telegram Alert"** node
-2. Replace `YOUR_TELEGRAM_CHAT_ID` with your actual chat ID (the number from @userinfobot)
-3. Click **"Save"**
-4. Do the same for **"Send Error Alert"** node
+1. Click on the **"Send Telegram Message"** node
+2. In the **"Chat ID"** field, replace `YOUR_TELEGRAM_CHAT_ID` with your actual chat ID (the number from @userinfobot)
+3. Under **"Credential to connect with"**, click the dropdown
+4. Click **"Create New Credential"**
+5. Enter your **bot token** from @BotFather (the long string like `123456789:ABCdefGHIjklMNOpqr...`)
+6. Click **"Save"**
 
 ---
 
-#### Step 9: Start Your Bot
+#### Step 8: Start Your Bot
 
 **Important:** Before testing, you must start a conversation with your bot:
 
@@ -201,17 +190,17 @@ Update the chat ID in the Telegram nodes:
 
 ---
 
-#### Step 10: Test the Workflow
+#### Step 9: Test the Workflow
 
 1. In n8n, click **"Execute Workflow"** button (top right)
 2. Wait 5-10 seconds
 3. Check your Telegram for a message! 📱
 
-**Note:** You'll only get a message if conditions are favorable (difficulty score < 95). To test regardless of conditions, temporarily change the IF node condition or run `python n8n_tracker.py` directly to see the output.
+**Note:** You'll get a message every time the workflow runs. The message will show the current rank 1000 volume and difficulty score.
 
 ---
 
-#### Step 11: Activate Automation
+#### Step 10: Activate Automation
 
 1. Toggle the switch at the top right to **"Active"**
 2. Keep n8n running
@@ -247,8 +236,9 @@ nohup n8n start &
 
 ### What You'll Receive
 
-You'll only get alerts when it's a good time to farm (difficulty score < 95):
+You'll get alerts twice daily (8 AM & 8 PM) with the current rank 1000 status:
 
+**Example message:**
 ```
 ✅ Backpack Volume Alert
 
@@ -261,6 +251,13 @@ GOOD TIME TO FARM - Rank 1000 volume is below average
 
 You need more than $2.27M in trading volume to be in the top 1000.
 ```
+
+**Emoji indicators:**
+- 🎯 = Score < 80 (Excellent time)
+- ✅ = Score < 95 (Good time)
+- ➖ = Score 95-105 (Average)
+- ⚠️ = Score 105-120 (Harder)
+- 🔴 = Score > 120 (Very hard)
 
 ---
 
@@ -293,10 +290,9 @@ The difficulty score shows how hard it is to farm compared to historical average
 4. Workflow is "Active" in n8n
 5. n8n is running
 
-You'll only get alerts when difficulty score < 95. To test, either:
-- Wait until conditions are favorable
-- Temporarily change the IF node condition to always pass
-- Run `python n8n_tracker.py` directly to see current score
+You'll get a message every time regardless of score. If you want to test immediately:
+- Click "Execute Workflow" in n8n
+- Or run `python n8n_tracker.py` directly to see the JSON output
 
 ### Python: "Module not found"
 
@@ -305,15 +301,14 @@ You'll only get alerts when difficulty score < 95. To test, either:
 pip install -r requirements.txt
 ```
 
-### n8n: Workflow triggered but both paths firing
+### n8n: Not receiving messages
 
-**Cause:** Missing IF node to route based on success/failure.
-
-**Solution:** The workflow already has proper IF nodes:
-1. First IF: Check if status === "success"
-2. Second IF: Check if difficulty_score < 95
-
-Make sure both IF nodes are configured correctly and connected properly.
+**Check:**
+1. Bot credentials are configured correctly (bot token from @BotFather)
+2. Chat ID is correct (numeric ID from @userinfobot)
+3. You've sent `/start` to your bot in Telegram
+4. Workflow is "Active" in n8n
+5. n8n is running
 
 ### Schedule not triggering
 
@@ -375,7 +370,7 @@ Uses Backpack Exchange public API:
 ## Tips & Best Practices
 
 1. **Build history first**: Run `python n8n_tracker.py` 2-3 times over a few days before activating n8n
-2. **Smart alerts only**: The workflow only alerts when score < 95 (good conditions)
+2. **Regular updates**: You'll get updates twice daily (8 AM & 8 PM) automatically
 3. **Use CLI for deep dives**: Run `python main.py analyze` when you want detailed statistics
 4. **Keep n8n running**: Ensure n8n is always running for scheduled alerts
 5. **Monitor difficulty score**: Act when 🎯 (< 80) or ✅ (< 95) appears
